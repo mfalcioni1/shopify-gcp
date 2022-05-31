@@ -1,16 +1,7 @@
 # https://shopify.dev/api/admin-rest/2021-10/resources/product#top
 # from importlib import reload 
-
-# first party
-import os
-
-# third party
-import pandas as pd
-
 # local
 import shopify_utils.api as su
-import gcp_utils.gcs as gcs
-import gcp_utils.bigquery as bq
 import utils._utils as utils
 import utils.shmovement as move
 
@@ -31,6 +22,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# main()
-
