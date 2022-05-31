@@ -1,3 +1,6 @@
+### 5/30/2022 pt2
+Completed the migration to public, and moved somethings around to prep for future `Docker` containerization and Github Actions work.
+
 ### 5/30/2022
 Need to double check, but I am fairly sure that all the private info is out of the repo. It should be good to publish. Final steps are to create a new repo, move the remaining files here to it and create it as a new public repo.
 
