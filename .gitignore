@@ -1,0 +1,7 @@
+__pycache__
+images/*
+env-shopify/
+*.json
+data/*.txt
+data/*.csv
+data/*.xlsx
