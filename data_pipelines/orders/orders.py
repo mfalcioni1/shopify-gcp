@@ -22,8 +22,10 @@ def main():
     order_detail.head()
     order_detail.columns
     order_detail.shape
-    test_case = order_detail[order_detail['id'] == 4722290491636] #best example
-    tc_res = pd.json_normalize(order_detail['billing_address'])
+    # unnesting json columns
+    billing_address = pd.json_normalize(order_detail['billing_address']).add_prefix('billing_')
+    customer = pd.json_normalize(order_detail['customer']).add_prefix('customer_')
+
     oh_cols = [['id', 'order_number', 'name', 'source_name', 
         'confirmed', 'processing_method', 'financial_status', 'fulfillment_status',
         'created_at', 'processed_at', 'closed_at',
@@ -39,10 +41,6 @@ if __name__ == "__main__":
 # main()
 
 ### Scratch work ###
-# 5823 is a really good order example row
-for i in range(len(order_detail.columns)):
-    print(f'{order_detail.columns[i]}: {order_detail.iloc[5823, i]}')
-
 
 # testing how we can make an API request from the most recent data
 next_last_id = order_detail['id'].iloc[-2]
