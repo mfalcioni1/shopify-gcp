@@ -1,3 +1,6 @@
+### 6/11/2022
+Updated `bigquery` function to allow for selecting the `write_disposition`. It defaults to the safest one.
+
 ### 5/30/2022 pt2
 Completed the migration to public, and moved somethings around to prep for future `Docker` containerization and Github Actions work.
 
