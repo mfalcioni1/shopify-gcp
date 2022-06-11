@@ -25,14 +25,24 @@ def main():
     # unnesting json columns
     billing_address = pd.json_normalize(order_detail['billing_address']).add_prefix('billing_')
     customer = pd.json_normalize(order_detail['customer']).add_prefix('customer_')
+    #TODO: Anonymize Customer
 
-    oh_cols = [['id', 'order_number', 'name', 'source_name', 
+    oh_cols = ['id', 'order_number', 'name', 'source_name', 
         'confirmed', 'processing_method', 'financial_status', 'fulfillment_status',
         'created_at', 'processed_at', 'closed_at',
         'subtotal_price', 'total_price', 'total_tax', 'current_total_price', 
         'total_discounts', 'discount_codes',
-        'note', 'note_attributes', 'cancel_reason', 'updated_at', 'cancelled_at']]
-    od_cols = [['id', 'order_number', 'name', 'source_name', ]]
+        'note', 'note_attributes', 'cancel_reason', 'updated_at', 'cancelled_at']
+    order_header  = order_detail[oh_cols]
+    
+    move.shop_to_gcs_bq(
+        api = "order_header",
+        api_res = order_header,
+        gcp_path = f"{utils.load_config()['gcs-orders']}order-header",
+        dataset = "orders",
+        table_name = "order_header",
+        write_disposition = "WRITE_TRUNCATE"
+    )
 
 
 if __name__ == "__main__":
