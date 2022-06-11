@@ -16,7 +16,8 @@ def df_to_bq_table(
     dataset_id: str,
     table_name: str,
     schema: List[bigquery.SchemaField] = None,
-    bq_client: bigquery.Client = None,
+    write_disposition = None,
+    bq_client: bigquery.Client = None
 ) -> None:
     """Helper to write DF to table.
     Args:
@@ -28,22 +29,24 @@ def df_to_bq_table(
     Return:
         None
     """
-    # TODO: Allow for more write_dispositions
 
     bq_client = bq_client or BQ_CLIENT
     table_id = f"{dataset_id}.{table_name}"
+    job_config = bigquery.LoadJobConfig()
+
+    if write_disposition is None:
+        print("No disposition provided, write empty being used.")
+        job_config.write_disposition = "WRITE_EMPTY"
+    else:
+        print(f"Using {write_disposition} as write disposition")
+        job_config.write_disposition = write_disposition
 
     if schema is None:
         print("Auto-detecting schema")
-        job_config = bigquery.LoadJobConfig(
-            write_disposition="WRITE_TRUNCATE"
-        )
     else: 
         print("Using provided schema.")
-        job_config = bigquery.LoadJobConfig(
-            schema=schema,
-            write_disposition="WRITE_TRUNCATE"
-        )
+        job_config.schema = schema
+
     job = bq_client.load_table_from_dataframe(
         df, table_id, job_config=job_config
     )
