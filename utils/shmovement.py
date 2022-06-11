@@ -15,7 +15,8 @@ def shop_to_gcs_bq(
     api_res: pd.DataFrame,
     gcs_path: str,
     dataset: str,
-    table_name: str
+    table_name: str,
+    write_disposition: str = None
     ):
     """Take API result store/archive it into GCS, and then place into BQ table.
     Args
@@ -54,7 +55,8 @@ def shop_to_gcs_bq(
             # process not performing any updates since the checks are storage exclusive
             bq.df_to_bq_table(df = db_update,
             dataset_id = dataset,
-            table_name = table_name
+            table_name = table_name,
+            write_disposition = write_disposition
             )
         else:
             print("No previous files to compare.")
