@@ -23,6 +23,8 @@ def main():
     order_detail.columns
     order_detail.shape
     # unnesting json columns
+    # for i in order_detail.columns:
+    #     if order_detail[i].dtype == "object"
     billing_address = pd.json_normalize(order_detail['billing_address']).add_prefix('billing_')
     customer = pd.json_normalize(order_detail['customer']).add_prefix('customer_')
     #TODO: Anonymize Customer
