@@ -35,7 +35,7 @@ def shop_to_gcs_bq(
     latest_api, latest_db, update_bool = utils.check_latest(api_res, files)
     if update_bool:
         file_name = f"{utils.date_stamp(f'{api}')}.csv"
-        api_res.to_csv(path_or_buf=f"./{file_name}")
+        api_res.to_csv(path_or_buf=f"./data/{file_name}")
         gcs.upload_to_bucket(
             gcs.GCSPath(f"{gcs_path}/{file_name}"),
             f"{os.getcwd()}/{file_name}")
