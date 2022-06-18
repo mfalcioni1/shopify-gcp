@@ -1,3 +1,6 @@
+### 6/18/2022
+Added function to check is table exists in `bigquery`. This should allow the data workflows to create tables when necessary. I remembered from the testing that the order flow writes to `GCS` and that is where table updates are created, so `WRITE_TRUNCATE` is the correct disposition. I should probably follow my TODO to write the files as partitions for easier checking/management.
+
 ### 6/11/2022
 Updated `bigquery` function to allow for selecting the `write_disposition`. It defaults to the safest one.
 
