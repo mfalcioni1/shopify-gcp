@@ -37,14 +37,18 @@ def main():
         'note', 'note_attributes', 'cancel_reason', 'updated_at', 'cancelled_at']
     order_header  = order_detail[oh_cols]
     
+    if bq.bq_table_exists(dataset_id = "orders", table_name = "order_header"):
+        oh_write_disposition = "WRITE_TRUNCATE"
+    else:
+        oh_write_disposition = "WRITE_EMPTY"
+    
     move.shop_to_gcs_bq(
-        api = "order_header",
-        api_res = order_header,
-        gcp_path = f"{utils.load_config()['gcs-orders']}order-header",
-        dataset = "orders",
-        table_name = "order_header",
-        write_disposition = "WRITE_TRUNCATE"
-    )
+            api = "order_header",
+            api_res = order_header,
+            gcs_path = f"{utils.load_config()['gcs-orders']}order-header",
+            dataset = "orders",
+            table_name = "order_header",
+            write_disposition = oh_write_disposition)
 
 
 if __name__ == "__main__":
