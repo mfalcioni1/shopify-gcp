@@ -30,6 +30,16 @@ setx AUTH_PATH YOUR/AUTH/PATH/
 setx AUTH %AUTH_PATH%/env_config.json
 ```
 
+### Expected Cloud Infra
+```sh
+# Buckets
+perrico-dev-orders
+perrico-dev-products
+perrico-dev-auth
+# Tables/Datasets
+perrico-plant-co-dev.products.product_details
+```
+
 ### Intuition for DB Updates
 ```py
 old = pd.DataFrame({'A': [1, 2, 3, 5],
