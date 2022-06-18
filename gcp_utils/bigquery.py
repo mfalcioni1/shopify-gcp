@@ -11,6 +11,31 @@ from google.cloud import bigquery_storage_v1
 BQ_CLIENT = bigquery.Client(project=os.getenv("GOOGLE_CLOUD_PROJECT", None))
 BQ_READ_CLIENT = bigquery_storage_v1.BigQueryReadClient()
 
+def bq_table_exists(
+    dataset_id: str,
+    table_name: str,
+    bq_client: bigquery.Client = None
+) -> bool:
+    """Helper to check if a table exists or not.
+    Args:
+        dataset_id (str): dataset to check for table
+        table_name (str): table name to check for
+        bq_client (bigquery.Client): BQ auth (optional)
+    Return:
+        tbl_exists (bool): T/F if table already exists or not.
+    """
+    bq_client = bq_client or BQ_CLIENT
+
+    tables = bq_client.list_tables(dataset_id)
+    
+    tbl_exists = False
+
+    for table in tables:
+        if "{}.{}".format(dataset_id, table_name) == "{}.{}".format(table.dataset_id, table.table_id):
+            tbl_exists = True
+
+    return tbl_exists
+
 def df_to_bq_table(
     df: pd.DataFrame,
     dataset_id: str,
