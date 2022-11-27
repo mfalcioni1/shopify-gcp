@@ -1,6 +1,7 @@
 # built in
 import os
 import re
+import datetime
 
 # local
 import utils._utils as utils
@@ -42,13 +43,23 @@ class GCSPath(str):
         self.__path = "/".join(self.__parts[1:])
         self.__bucket = self.__parts[0]
 
+    # returns the root bucket
     @property
     def bucket(self):
         return self.__bucket
 
+    # returns the path without the root bucket
     @property
     def path(self):
         return self.__path
+    
+    #return gcspath up a level
+    def up(self):
+        return GCSPath("gs://" + "/".join(self.__parts[:-1]))
+    
+    #add to gcs path
+    def add(self, value):
+        return GCSPath("gs://" + "/".join(self.__parts + [value]))
 
 def get_gcs_objects(
     uri: GCSPath,
@@ -132,6 +143,34 @@ def upload_to_bucket(uri: GCSPath,
     blob.upload_from_filename(local_path)
     return print(f"Uploaded {local_path} to {uri}")
 
+def pd_to_gcs(df: pd.DataFrame, 
+    bucket_uri: GCSPath, 
+    bucket: storage.Bucket, 
+    file_name: str, 
+    archive: bool):
+    """Uploads a pandas dataframe to a GCS bucket as a csv
+    Args:
+        df (pd.DataFrame): dataframe to upload
+        bucket_uri (GCSPath): the bucket and path to save the object
+        bucket (storage.Bucket): gcs bucket object
+        file_name (str): name of the file to save
+        archive (bool): whether to write an archive of the file
+    Return:
+        None
+    Example:
+        bucket_uri = GCSPath("my-bucket/my-folder")
+        bucket = GCS.get_bucket(bucket_uri.bucket)
+        file_name = "my-file.csv"
+        pd_to_gcs(df, bucket_uri, bucket, file_name, archive=True)
+    """
+    fp = f"{bucket_uri.path}/{file_name}.csv"
+    bucket.blob(fp).upload_from_string(df.to_csv(index=False), "text/csv")
+    print("Successfully wrote to: " + fp)
+    if archive:
+        afp = f"{date_stamp(f'{bucket_uri.path}/archive/{file_name}_')}.csv"
+        bucket.blob(afp).upload_from_string(df.to_csv(index=False), "text/csv")
+        print("Succesfully archived to: " + afp)
+
 def gcs_to_dataframe(uri: GCSPath,
     local_path: str,
     cleanup_local: bool = True,
@@ -161,4 +200,10 @@ def gcs_to_dataframe(uri: GCSPath,
     if cleanup_local:
         os.remove(local_file)
         
-    return df    
+    return df
+
+def date_stamp(name: str):
+    """Adds a date stamp to a file name"""
+    utc = datetime.utcnow()
+    s_utc = utc.strftime("%Y%m%d")
+    return f"{name}{s_utc}"

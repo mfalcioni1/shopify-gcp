@@ -1,3 +1,6 @@
+### 11/26/2022
+Wrote out the partition by date functionality. Need to write out how to move that to BQ.
+
 ### 7/4/2022
 Re-writing `shmovement` so that I can partition orders by date.
 

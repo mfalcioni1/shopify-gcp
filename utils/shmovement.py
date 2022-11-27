@@ -30,25 +30,21 @@ class shmover:
     def __init__(self, 
         api: str,
         api_res: pd.DataFrame,
-        gcs_path: str,
+        gcs_path: gcs.GCSPath,
         dataset: str,
         table_name: str,
         write_disposition: str = None,
         partition: bool = False,
-        parition_by: str = "order_date"):
+        partition_by: str = "order_date"):
             self.api = api
             self.api_res = api_res
-            self.gcs_path = gcs_path
+            self.bucket_uri = gcs_path
+            self.bucket = gcs.GCS.get_bucket(self.bucket_uri.bucket)
             self.dataset = dataset
             self.table_name = table_name
             self.write_disposition = write_disposition
             self.partition = partition
-            self.partition_by = self.partition_by
-
-    def date_stamp(self, name: str):
-        utc = datetime.datetime.utcnow()
-        s_utc = utc.strftime("%Y%m%d")
-        self.file_date_stamp = f"{name}{s_utc}"
+            self.partition_by = partition_by
 
     def check_latest(self, api_res, gcs_iter):
         newest = api_res[api_res['created_at'] == api_res['created_at'].max()]['created_at'].iloc[0]
@@ -71,54 +67,32 @@ class shmover:
         """Take an API result, and store/archive it into GCS.
         """
         self.remove_nas()
-        files = gcs.get_gcs_objects(gcs.GCSPath(self.gcs_path))
+        files = gcs.get_gcs_objects(self.bucket_uri)
         self.check_latest(self.api_res, files)
-        if self.update_bool & self.api not in "order":
-            file_name = f"{self.date_stamp(f'{self.api}')}.csv"
-            self.api_res.to_csv(path_or_buf=f"./data/{file_name}")
-            gcs.upload_to_bucket(
-                gcs.GCSPath(f"{self.gcs_path}/{file_name}"),
-                f"{os.getcwd()}/{file_name}")
-        elif self.update_bool & self.api in "order": ## You are here
-            partition_list = self.api_res[self.parition_by].unique()
-            #TODO: This probably needs fleshed out some to treat orders differently
-            # for example, maybe export files by a day partition?
+        if self.update_bool and not self.partition:
+            file_name = f"{self.api}.csv"
+            gcs.pd_to_gcs(df=self.api_res, bucket_uri=self.bucket_uri, file_name=file_name, archive=True)
+            
+        elif self.update_bool and self.partition:
+            files = []
+            for n, g in self.api_res.groupby(pd.Grouper(self.partition_by)):
+                fn = self.bucket_uri.path + "/" + "date=" + n + "/" + file_name + ".csv"
+                print(f"Writing to: {fn}")
+                files.append("gs://" + self.bucket_uri.bucket + "/" + fn)
+                self.bucket.blob(fn).upload_from_string(g.drop(self.partition_by, axis=1).to_csv(index=False), "text/csv")
+    
+    #TODO: Flow for writing partitioned files to BQ and also non-partitioned files to BQ
 
-            # latest_file = [x for x in gcs_iter if str(self.latest_db) in x]
-            # latest_orders = gcs.gcs_to_dataframe(gcs.GCSPath(f"{self.gcs_path}{latest_file[0]}"), 
-            #     os.getcwd).fillna('').set_index('id')
+    def shop_to_bq(self):
+        """Take API result and place into BQ table.
+        Args
 
-def shop_to_gcs_bq(self
-    ):
-    """Take API result store/archive it into GCS, and then place into BQ table.
-    Args
-
-    Returns
-        print of the results of the load.
-    """
-
-     #nans/nones get messy when reading in and out; TODO: Is this right?
-    # check if new table is necessary.
-
-        if latest_db:
-
-            old_file = f"{self.api}{latest_db}.csv"
-            db_gcs = gcs.gcs_to_dataframe(gcs.GCSPath(f"{self.gcs_path}/{old_file}"),
-                os.getcwd()).fillna('').set_index('id')
-
-            gcs.mv_blob(gcs.GCSPath(self.gcs_path), old_file, gcs.GCSPath(f"{self.gcs_path}/archive"), old_file)
-            db_gcs.update(self.api_res, join='left')
-            db_update = pd.concat([db_gcs, self.api_res], join="outer").drop_duplicates()
-            # TODO: If this step fails mid-moving the files to BQ, then it sticks in a limbo state
-            # where the cloud storage is updated but the BQ table is not. Re-running results in the 
-            # process not performing any updates since the checks are storage exclusive
-            bq.df_to_bq_table(df = db_update,
+        Returns
+            print of the results of the load.
+        """
+        bq.df_to_bq_table(df = self.api_res,
             dataset_id = self.dataset,
             table_name = self.table_name,
             write_disposition = self.write_disposition
-            )
-        else:
-            print("No previous files to compare.")
-        return print(f"Latest {self.api} added as of {latest_api}.")
-    else:
-        return print(f"No new {self.api} found. No DB updates performed")
+        )
+        return print(f"Latest {self.api} added as of {self.latest_api}.")
