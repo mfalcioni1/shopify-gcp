@@ -1,3 +1,6 @@
+### 12/28/2022
+Working on the file partition loading functionality. Probably ready to test the flow.
+
 ### 11/26/2022
 Wrote out the partition by date functionality. Need to write out how to move that to BQ.
 
