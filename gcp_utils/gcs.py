@@ -171,6 +171,20 @@ def pd_to_gcs(df: pd.DataFrame,
         bucket.blob(afp).upload_from_string(df.to_csv(index=False), "text/csv")
         print("Succesfully archived to: " + afp)
 
+def partition_pd_to_gcs(df: pd.DataFrame,
+    file_name: str,
+    partition: str,
+    bucket_uri: GCSPath,
+    bucket: storage.Bucket):
+    """Uploads a pandas dataframe to a GCS bucket as a csv partitioned by a column"""
+    files = []
+    for n, g in df.groupby(pd.Grouper(partition)):
+        fn = bucket_uri.path + "/" + "date=" + n + "/" + file_name + ".csv"
+        print(f"Writing to: {fn}")
+        files.append("gs://" + bucket_uri.bucket + "/" + fn)
+        bucket.blob(fn).upload_from_string(g.drop(partition, axis=1).to_csv(index=False), "text/csv")
+    return files
+
 def gcs_to_dataframe(uri: GCSPath,
     local_path: str,
     cleanup_local: bool = True,

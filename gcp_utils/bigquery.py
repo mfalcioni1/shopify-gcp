@@ -1,6 +1,10 @@
 # base
 import os
 from typing import List
+from time import sleep
+
+# local
+import gcs
 
 # 3rd party
 import google.cloud.bigquery as bigquery
@@ -82,3 +86,45 @@ def df_to_bq_table(
         f"Loaded {table.num_rows} rows and "
         + f"{len(table.schema)} columns to {table_id}.\n\n"
     )
+
+# would like to test python native way of doing this
+# def gcs_partition_to_bq(dataset_id: str,
+#     bucket_uri: gcs.GCSPath,
+#     files_to_load: str,
+#     replace: str,
+#     partition_uri_prefix: gcs.GCSPath = None):
+#     """Helper to load a partitioned GCS bucket to BQ. Using BQ CLI."""
+#     if partition_uri_prefix is None:
+#         partition_uri_prefix = bucket_uri
+ 
+#     bq_load = (f"bq load --replace={replace.lower()} --source_format=CSV "
+#     "--autodetect --hive_partitioning_mode=AUTO "
+#     f"--hive_partitioning_source_uri_prefix={partition_uri_prefix} "
+#     f"{dataset_id}.{bucket_uri.split('/')[-2].replace('-', '_')} {files_to_load}")
+#     print(f"Loading with {bq_load}")
+#     os.system(bq_load)
+#     print("Big Query Load Successful.")
+
+def gcs_partition_to_bq(table_id: str,
+    bucket_uri: gcs.GCSPath,
+    write_disposition: str,
+    partition_uri_prefix: gcs.GCSPath = None,
+    bq_client: bigquery.Client = None):
+    if partition_uri_prefix is None:
+        partition_uri_prefix = bucket_uri
+    
+    bq_client = bq_client or BQ_CLIENT
+
+    job_config = bigquery.LoadJobConfig(autodetect=True,
+        write_disposition=write_disposition, 
+        hive_partitioning={"mode": "AUTO", 
+        "source_uri_prefix": partition_uri_prefix})
+    
+    job = bq_client.load_table_from_uri(destination=table_id, job_config=job_config, source_uris=bucket_uri)
+
+    while not job.done():
+        sleep(2)
+    if job.errors:
+        raise RuntimeError(job.errors)
+    else:
+        return job.result()

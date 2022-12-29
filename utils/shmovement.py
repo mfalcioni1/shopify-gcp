@@ -82,6 +82,17 @@ class shmover:
                 self.bucket.blob(fn).upload_from_string(g.drop(self.partition_by, axis=1).to_csv(index=False), "text/csv")
     
     #TODO: Flow for writing partitioned files to BQ and also non-partitioned files to BQ
+    def gcs_partition_to_bq(self):
+        """Take GCS Hive partitioned files and load into BQ.
+        """
+
+        if self.update_bool:
+            bq.gcs_partition_to_bq(table_id=f"{self.dataset}.{self.table_name}",
+                bucket_uri=self.bucket_uri,
+                write_disposition=self.write_disposition)
+            return print(f"Latest {self.api} added as of {self.latest_api}.")
+        else:
+            return print(f"No new data to add. Latest {self.api} added as of {self.latest_db}.")
 
     def shop_to_bq(self):
         """Take API result and place into BQ table.
