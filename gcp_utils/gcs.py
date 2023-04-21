@@ -171,19 +171,32 @@ def pd_to_gcs(df: pd.DataFrame,
         bucket.blob(afp).upload_from_string(df.to_csv(index=False), "text/csv")
         print("Succesfully archived to: " + afp)
 
-def partition_pd_to_gcs(df: pd.DataFrame,
-    file_name: str,
-    partition: str,
-    bucket_uri: GCSPath,
-    bucket: storage.Bucket):
-    """Uploads a pandas dataframe to a GCS bucket as a csv partitioned by a column"""
-    files = []
-    for n, g in df.groupby(pd.Grouper(partition)):
-        fn = bucket_uri.path + "/" + "date=" + n + "/" + file_name + ".csv"
-        print(f"Writing to: {fn}")
-        files.append("gs://" + bucket_uri.bucket + "/" + fn)
-        bucket.blob(fn).upload_from_string(g.drop(partition, axis=1).to_csv(index=False), "text/csv")
-    return files
+def partition_dataframe_to_gcs(df: pd.DataFrame, 
+                               bucket_name, 
+                               prefix, 
+                               partition_columns, 
+                               gcs_client: storage.Client = None):
+    
+    gcs_client = gcs_client or GCS
+    bucket = gcs_client.get_bucket(bucket_name)
+
+    def create_gcs_path(row, prefix, partition_columns):
+        path = prefix
+        for column in partition_columns:
+            path += f"{column}={row[column]}/"
+        return path
+
+    df['gcs_path'] = df.apply(lambda row: create_gcs_path(row, prefix, partition_columns), axis=1)
+
+    for path, partition_df in df.groupby('gcs_path'):
+        partition_file = path.rstrip('/') + '.csv'
+        partition_df.drop(columns=['gcs_path'], inplace=True)
+        partition_df.to_csv(partition_file, index=False)
+        blob = bucket.blob(partition_file)
+        blob.upload_from_filename(partition_file)
+        os.remove(partition_file)
+        print(f"Uploaded {partition_file} to {bucket_name}/{partition_file}")
+
 
 def gcs_to_dataframe(uri: GCSPath,
     local_path: str,

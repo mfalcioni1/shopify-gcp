@@ -4,7 +4,7 @@ from typing import List
 from time import sleep
 
 # local
-import gcs
+from gcp_utils import gcs
 
 # 3rd party
 import google.cloud.bigquery as bigquery
