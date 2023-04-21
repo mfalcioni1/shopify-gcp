@@ -5,3 +5,4 @@ env-shopify/
 data/*.txt
 data/*.csv
 data/*.xlsx
+.venv

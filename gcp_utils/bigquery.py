@@ -9,11 +9,9 @@ from gcp_utils import gcs
 # 3rd party
 import google.cloud.bigquery as bigquery
 import pandas as pd
-from google.cloud import bigquery_storage_v1
 
 
 BQ_CLIENT = bigquery.Client(project=os.getenv("GOOGLE_CLOUD_PROJECT", None))
-BQ_READ_CLIENT = bigquery_storage_v1.BigQueryReadClient()
 
 def bq_table_exists(
     dataset_id: str,
