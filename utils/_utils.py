@@ -4,8 +4,12 @@ import os
 
 def load_config(path = None):
     if path == None:
-        with open(os.getenv('AUTH')) as f:
-            config = json.load(f)
+        try:
+            with open(os.getenv('AUTH')) as f:
+                config = json.load(f)
+        except:
+            with open(f"{os.getenv('AUTH_PATH')}/env_config.json") as f:
+                config = json.load(f)
     else:
         with open(path) as f:
             config = json.load(f)

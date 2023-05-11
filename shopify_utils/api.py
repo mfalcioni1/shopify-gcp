@@ -12,7 +12,7 @@ import wget
 
 # TODO: Write more sophisticated client class
 
-config = utils.load_config(os.getenv('AUTH'))
+config = utils.load_config()
 
 def build_url(api_params: dict, query_params: dict = None):
     version = init_api()
