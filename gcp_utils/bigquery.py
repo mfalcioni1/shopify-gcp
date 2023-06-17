@@ -2,6 +2,7 @@
 import os
 from typing import List
 from time import sleep
+import subprocess
 
 # local
 from gcp_utils import gcs
@@ -84,45 +85,44 @@ def df_to_bq_table(
         f"Loaded {table.num_rows} rows and "
         + f"{len(table.schema)} columns to {table_id}.\n\n"
     )
-
-# would like to test python native way of doing this
-# def gcs_partition_to_bq(dataset_id: str,
-#     bucket_uri: gcs.GCSPath,
-#     files_to_load: str,
-#     replace: str,
-#     partition_uri_prefix: gcs.GCSPath = None):
-#     """Helper to load a partitioned GCS bucket to BQ. Using BQ CLI."""
-#     if partition_uri_prefix is None:
-#         partition_uri_prefix = bucket_uri
- 
-#     bq_load = (f"bq load --replace={replace.lower()} --source_format=CSV "
-#     "--autodetect --hive_partitioning_mode=AUTO "
-#     f"--hive_partitioning_source_uri_prefix={partition_uri_prefix} "
-#     f"{dataset_id}.{bucket_uri.split('/')[-2].replace('-', '_')} {files_to_load}")
-#     print(f"Loading with {bq_load}")
-#     os.system(bq_load)
-#     print("Big Query Load Successful.")
-
-def gcs_partition_to_bq(table_id: str,
-    bucket_uri: gcs.GCSPath,
-    write_disposition: str,
+    
+def gcs_partition_to_bq(bucket_uri: gcs.GCSPath,
+    table: str, 
+    replace: str,
+    project_id: str = None,
+    files_to_load: str = None,
     partition_uri_prefix: gcs.GCSPath = None,
+    schema: dict = None,
     bq_client: bigquery.Client = None):
     if partition_uri_prefix is None:
         partition_uri_prefix = bucket_uri
+    if schema is None:
+        schema = "--autodetect"
+    else:
+        schema = f"--schema={schema}"
     
     bq_client = bq_client or BQ_CLIENT
+    project_id = project_id or bq_client.project
 
-    job_config = bigquery.LoadJobConfig(autodetect=True,
-        write_disposition=write_disposition, 
-        hive_partitioning={"mode": "AUTO", 
-        "source_uri_prefix": partition_uri_prefix})
-    
-    job = bq_client.load_table_from_uri(destination=table_id, job_config=job_config, source_uris=bucket_uri)
-
-    while not job.done():
-        sleep(2)
-    if job.errors:
-        raise RuntimeError(job.errors)
+    if files_to_load is None:
+        bq_load = ["bq", "load", f"--replace={str(replace).lower()}", 
+                   "--source_format=CSV", "--skip_leading_rows=1", 
+                   schema, "--hive_partitioning_mode=AUTO",
+                   f"--project_id={project_id}",
+                   f"--hive_partitioning_source_uri_prefix={partition_uri_prefix}",
+                   f"{table}", f"{partition_uri_prefix}/*"]
     else:
-        return job.result()
+        bq_load = ["bq", "load", f"--replace={str(replace).lower()}", 
+                   "--source_format=CSV", "--skip_leading_rows=1", 
+                   schema, "--hive_partitioning_mode=AUTO",
+                   f"--project_id={project_id}",
+                   f"--hive_partitioning_source_uri_prefix={partition_uri_prefix}",
+                   f"{table}", f"{files_to_load}"]
+    print(f"Loading with {bq_load}")
+    try:
+        output = subprocess.check_output(bq_load)
+        print(output)
+    except subprocess.CalledProcessError as e:
+        print(e.output)
+        raise e
+    print("Big Query Load Successful.")

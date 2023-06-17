@@ -7,7 +7,6 @@ import re
 import pandas as pd
 
 # local
-import shopify_utils.api as su
 import gcp_utils.gcs as gcs
 import gcp_utils.bigquery as bq
 
@@ -46,7 +45,7 @@ class shmover:
             self.partition = partition
             self.partition_by = partition_by
 
-    def check_latest(self, api_res, gcs_iter):
+    def _check_latest(self, api_res, gcs_iter):
         newest = api_res[api_res['created_at'] == api_res['created_at'].max()]['created_at'].iloc[0]
         self.latest_api = int(datetime.datetime.fromisoformat(newest).strftime("%Y%m%d"))
         if gcs_iter:
@@ -58,7 +57,7 @@ class shmover:
             self.latest_db = None
             self.update_bool = True
 
-    def remove_nas(self):
+    def _remove_nas(self):
         """Cleanup of empties in api res
         """
         self.api_res = self.api_res.fillna('')
@@ -66,30 +65,33 @@ class shmover:
     def shop_to_gcs(self):
         """Take an API result, and store/archive it into GCS.
         """
-        self.remove_nas()
+        self._remove_nas()
         files = gcs.get_gcs_objects(self.bucket_uri)
-        self.check_latest(self.api_res, files)
+        self._check_latest(self.api_res, files)
+        file_name = f"{self.api}.csv"
         if self.update_bool and not self.partition:
-            file_name = f"{self.api}.csv"
-            gcs.pd_to_gcs(df=self.api_res, bucket_uri=self.bucket_uri, file_name=file_name, archive=True)
+            gcs.pd_to_gcs(df=self.api_res, bucket_uri=self.bucket_uri, 
+                          file_name=file_name, archive=True)
             
         elif self.update_bool and self.partition:
             files = []
             for n, g in self.api_res.groupby(pd.Grouper(self.partition_by)):
-                fn = self.bucket_uri.path + "/" + "date=" + n + "/" + file_name + ".csv"
+                fn = self.bucket_uri.path + "/" + "date=" + n + "/" + file_name
                 print(f"Writing to: {fn}")
                 files.append("gs://" + self.bucket_uri.bucket + "/" + fn)
                 self.bucket.blob(fn).upload_from_string(g.drop(self.partition_by, axis=1).to_csv(index=False), "text/csv")
     
-    #TODO: Flow for writing partitioned files to BQ and also non-partitioned files to BQ
+    #TODO: Flow for writing non-partitioned files to BQ
     def gcs_partition_to_bq(self):
         """Take GCS Hive partitioned files and load into BQ.
         """
 
         if self.update_bool:
-            bq.gcs_partition_to_bq(table_id=f"{self.dataset}.{self.table_name}",
-                bucket_uri=self.bucket_uri,
-                write_disposition=self.write_disposition)
+            replace = not "WRITE_APPEND" in self.write_disposition
+            bq.gcs_partition_to_bq(bucket_uri=self.bucket_uri,
+                table=f"{self.dataset}.{self.table_name}",
+                replace=replace,
+                partition_uri_prefix=self.bucket_uri)
             return print(f"Latest {self.api} added as of {self.latest_api}.")
         else:
             return print(f"No new data to add. Latest {self.api} added as of {self.latest_db}.")
