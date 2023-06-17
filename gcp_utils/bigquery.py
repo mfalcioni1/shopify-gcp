@@ -120,7 +120,7 @@ def gcs_partition_to_bq(bucket_uri: gcs.GCSPath,
                    f"{table}", f"{files_to_load}"]
     print(f"Loading with {bq_load}")
     try:
-        output = subprocess.check_output(bq_load)
+        output = subprocess.check_output(bq_load, shell=True)
         print(output)
     except subprocess.CalledProcessError as e:
         print(e.output)
