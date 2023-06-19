@@ -15,14 +15,17 @@ import utils._utils as utils
 import utils.shmovement as move
 
 def main():
-    order_detail = su.get_orders(query_params = {'created_at_min': '2022-05-01', 'created_at_max': '2022-06-01'})
+    # first order date: 2018-04-13
+    order_detail = su.get_orders(query_params = {'created_at_min': '2018-04-13', 'created_at_max': '2022-04-30'})
     
     billing_address = pd.json_normalize(order_detail['billing_address']).add_prefix('billing_')
     customer = pd.json_normalize(order_detail['customer']).add_prefix('customer_')
     # customer.to_csv('customer.csv')
     #TODO: Anonymize Customer
 
-    oh_cols = ['id', 'order_number', 'name', 'source_name', 
+    order_detail.loc[:, 'order_date'] = order_detail['created_at'].str[:10]
+
+    oh_cols = ['id', 'order_date', 'order_number', 'name', 'source_name', 
         'confirmed', 'financial_status', 'fulfillment_status',
         'created_at', 'processed_at', 'closed_at',
         'subtotal_price', 'total_price', 'total_tax', 'current_total_price', 
@@ -30,7 +33,6 @@ def main():
         'note', 'note_attributes', 'cancel_reason', 'updated_at', 'cancelled_at']
     order_header  = order_detail[oh_cols]
     # change created_at to order_date and remove time stamp
-    order_header.loc[:, 'order_date'] = order_header['created_at'].str[:10]
 
     if bq.bq_table_exists(dataset_id = "orders", table_name = "order_header"):
         oh_write_disposition = "WRITE_TRUNCATE"
@@ -50,6 +52,36 @@ def main():
     
     oh_move.shop_to_gcs()
     oh_move.gcs_partition_to_bq()
+
+    # creating order_detail table
+    od_cols = ['id', 'order_date', 'cancel_reason', 'cancelled_at', 'closed_at', 'confirmed', 
+               'created_at', 'current_subtotal_price', 'current_total_discounts', 
+               'current_total_price', 'current_total_tax', 'discount_codes', 'email', 
+               'financial_status', 'fulfillment_status', 'landing_site', 'landing_site_ref', 
+               'name', 'note', 'order_number', 'processed_at', 'referring_site', 'source_name',
+               'subtotal_price', 'tags', 'total_discounts', 'total_line_items_price',
+               'total_outstanding', 'total_price', 'total_price_usd', 'total_tax',
+               'total_weight', 'updated_at', 'user_id', 'discount_applications', 'line_items',
+               'refunds']
+    # TODO: Parse line items to get to product level
+    if bq.bq_table_exists(dataset_id = "orders", table_name = "order_detail"):
+        od_write_disposition = "WRITE_TRUNCATE"
+    else:
+        od_write_disposition = "WRITE_EMPTY"
+
+    od_gcs_path = gcs.GCSPath(f"{utils.load_config()['gcs-orders']}order-detail")
+
+    od_move = move.shmover(api="order_detail",
+                           api_res=order_detail[od_cols],
+                           gcs_path=od_gcs_path,
+                           dataset="orders",
+                           table_name="order_detail",
+                           write_disposition=od_write_disposition,
+                           partition=True,
+                           partition_by="order_date")
+    
+    od_move.shop_to_gcs()
+    od_move.gcs_partition_to_bq()
 
 if __name__ == "__main__":
     main()
