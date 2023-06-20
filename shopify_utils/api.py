@@ -94,3 +94,23 @@ def get_images(image_ids: pd.DataFrame):
             img_url = row['image_src']
             wget.download(img_url, img)
     return print(f'{index_1} images written')
+
+def expand_nested_col(df: pd.DataFrame, 
+                      col: str, 
+                      id_col: str,
+                      id_col_name: str) -> pd.DataFrame:
+    # Create new dataframe
+    new_data = []
+
+    # For each row in the DataFrame
+    for idx, row in df.iterrows():
+        # Use json_normalize on the 'col' column and add the 'id' column
+        for item in row[col]:
+            temp = pd.json_normalize(item)
+            temp[id_col_name] = row[id_col]
+            new_data.append(temp)
+
+    # Concatenate all dataframes in the list
+    new_df = pd.concat(new_data)
+    new_df.reset_index(drop=True, inplace=True)
+    return new_df

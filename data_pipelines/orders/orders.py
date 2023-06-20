@@ -16,7 +16,7 @@ import utils.shmovement as move
 
 def main():
     # first order date: 2018-04-13
-    order_detail = su.get_orders(query_params = {'created_at_min': '2018-04-13', 'created_at_max': '2022-04-30'})
+    order_detail = su.get_orders(query_params = {'created_at_min': '2023-04-01', 'created_at_max': '2023-04-30'})
     
     billing_address = pd.json_normalize(order_detail['billing_address']).add_prefix('billing_')
     customer = pd.json_normalize(order_detail['customer']).add_prefix('customer_')
@@ -60,7 +60,7 @@ def main():
                'financial_status', 'fulfillment_status', 'landing_site', 'landing_site_ref', 
                'name', 'note', 'order_number', 'processed_at', 'referring_site', 'source_name',
                'subtotal_price', 'tags', 'total_discounts', 'total_line_items_price',
-               'total_outstanding', 'total_price', 'total_price_usd', 'total_tax',
+               'total_outstanding', 'total_price', 'total_tax',
                'total_weight', 'updated_at', 'user_id', 'discount_applications', 'line_items',
                'refunds']
     # TODO: Parse line items to get to product level
@@ -83,6 +83,13 @@ def main():
     od_move.shop_to_gcs()
     od_move.gcs_partition_to_bq()
 
+    line_items = pd.concat([pd.json_normalize(x) for x in order_detail['line_items']])
+    line_items.reset_index(drop=True, inplace=True)
+
+    line_items = su.expand_nested_col(df=order_detail, 
+                                   col='line_items', 
+                                   id_col='id',
+                                   id_col_name='order_id')
 if __name__ == "__main__":
     main()
 
