@@ -126,3 +126,38 @@ def gcs_partition_to_bq(bucket_uri: gcs.GCSPath,
         print(e.output)
         raise e
     print("Big Query Load Successful.")
+
+from google.cloud import bigquery
+
+def bq_get_tables(dataset_id: str, 
+                  bq_client: bigquery.Client = None):
+    """Return a list of table names in a BigQuery dataset."""
+    bq_client = bq_client or BQ_CLIENT
+    table_names = []
+    dataset_ref = bq_client.dataset(dataset_id)
+    tables = list(bq_client.list_tables(dataset_ref))
+    
+    for table in tables:
+        table_names.append(table.table_id)
+    return table_names
+
+
+def bq_get_columns(dataset_id: str, 
+                    table_name: str, 
+                    bq_client: bigquery.Client = None):
+    """Return a list of column names in a BigQuery table."""
+    bq_client = bq_client or BQ_CLIENT
+    table_ref = bq_client.dataset(dataset_id).table(table_name)
+    table = bq_client.get_table(table_ref)
+    return [schema.name for schema in table.schema]
+
+
+def get_dataset_info(dataset_id: str,
+                     bq_client: bigquery.Client = None):
+    """Return a list of dicts containing the table name and columns for each table in the BigQuery dataset."""
+    bq_client = bq_client or BQ_CLIENT
+    table_dicts = []
+    for table_name in bq_get_tables(bq_client, dataset_id):
+        column_names = bq_get_columns(bq_client, dataset_id, table_name)
+        table_dicts.append({"table_name": table_name, "column_names": column_names})
+    return table_dicts

@@ -16,13 +16,20 @@ import utils.shmovement as move
 
 def main():
     # first order date: 2018-04-13
-    order_detail = su.get_orders(query_params = {'created_at_min': '2023-04-01', 'created_at_max': '2023-04-30'})
-    
+    order_detail = su.get_orders(query_params = {'created_at_min': '2023-04-01', 'created_at_max': '2023-07-01'})
+    order_detail.reset_index
     billing_address = pd.json_normalize(order_detail['billing_address']).add_prefix('billing_')
-    customer = pd.json_normalize(order_detail['customer']).add_prefix('customer_')
+
+    records = order_detail.apply(
+    lambda x: dict(x['customer'], order_id=x['id']) if x['customer'] is not None else {'order_id': x['id']},
+    axis=1
+    ).tolist()
+    customer = pd.json_normalize(records).add_prefix('customer_')
     # customer.to_csv('customer.csv')
     #TODO: Anonymize Customer
 
+    order_detail.drop("customer", axis=1, inplace=True)
+    order_detail = order_detail.merge(customer, left_on='id', right_on='customer_order_id')
     order_detail.loc[:, 'order_date'] = order_detail['created_at'].str[:10]
 
     oh_cols = ['id', 'order_date', 'order_number', 'name', 'source_name', 
@@ -30,7 +37,8 @@ def main():
         'created_at', 'processed_at', 'closed_at',
         'subtotal_price', 'total_price', 'total_tax', 'current_total_price', 
         'total_discounts', 'discount_codes',
-        'note', 'note_attributes', 'cancel_reason', 'updated_at', 'cancelled_at']
+        'note', 'note_attributes', 'cancel_reason', 'updated_at', 'cancelled_at',
+        'customer_id']
     order_header  = order_detail[oh_cols]
     # change created_at to order_date and remove time stamp
 
@@ -71,6 +79,14 @@ def main():
 
     od_gcs_path = gcs.GCSPath(f"{utils.load_config()['gcs-orders']}order-detail")
 
+    line_items = pd.concat([pd.json_normalize(x) for x in order_detail['line_items']])
+    line_items.reset_index(drop=True, inplace=True)
+
+    line_items = su.expand_nested_col(df=order_detail, 
+                                   col='line_items', 
+                                   id_col='id',
+                                   id_col_name='order_id')
+    
     od_move = move.shmover(api="order_detail",
                            api_res=order_detail[od_cols],
                            gcs_path=od_gcs_path,
@@ -83,13 +99,6 @@ def main():
     od_move.shop_to_gcs()
     od_move.gcs_partition_to_bq()
 
-    line_items = pd.concat([pd.json_normalize(x) for x in order_detail['line_items']])
-    line_items.reset_index(drop=True, inplace=True)
-
-    line_items = su.expand_nested_col(df=order_detail, 
-                                   col='line_items', 
-                                   id_col='id',
-                                   id_col_name='order_id')
 if __name__ == "__main__":
     main()
 
