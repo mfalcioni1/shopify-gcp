@@ -52,6 +52,28 @@ export ZONE=us-central1-a
 gcloud compute instances create $ADBCLUSTER-vm \
     --zone=$ZONE \
     --scopes=https://www.googleapis.com/auth/cloud-platform
+gcloud compute ssh $ADBCLUSTER-vm --zone=us-central1-a
 ```
 
-gcloud compute ssh instance-1 --zone=us-central1-a
+Install postgres
+```sh
+sudo apt-get update
+sudo apt-get install --yes postgresql-client
+```
+
+Set-up env
+```sh
+gcloud config set project perrico-plant-co-dev
+export REGION=us-central1
+export ADBCLUSTER=alloydb-aip-01
+#return DB IP
+gcloud alloydb instances describe $ADBCLUSTER-pr --cluster=$ADBCLUSTER --region=$REGION --format="(ipAddress)"
+export PGPASSWORD={PW_FROM_ABOVE}
+export INSTANCE_IP={IP_FROM_ABOVE}
+```
+
+Connect to DB
+```sh
+#connect to DB
+psql "host=$INSTANCE_IP user=postgres sslmode=require"
+```
